@@ -1,0 +1,904 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Plate Log</title>
+<meta name="theme-color" content="#1F5F4A">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: one-column phone app, sticky date header, fixed bottom tab bar; macro colors carry meaning everywhere */
+:root{
+  --bg:#ECEFEA; --surface:#F8FAF6; --ink:#17201C; --muted:#5E6B64; --line:#D3D9D2;
+  --accent:#1F5F4A; --accent-ink:#F4F8F5;
+  --pro:#C2412D; --carb:#C98A14; --fat:#2F6DB0;
+  --over:#B3261E; --good:#2E7D4F;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#111614; --surface:#1A211E; --ink:#E7EDE9; --muted:#93A29A; --line:#2B3530;
+  --accent:#4FB08E; --accent-ink:#0D1411;
+  --pro:#F07A62; --carb:#E3AE3F; --fat:#6EA6E6;
+  --over:#FF7A70; --good:#5CC48A; color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:env(safe-area-inset-top,0px) calc(84px + env(safe-area-inset-bottom,0px));font-variant-numeric:tabular-nums}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+img{max-width:100%}
+.wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:18px;width:100%}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:.01em}
+h2{font-size:26px;font-weight:700}
+h3{font-size:18px;font-weight:600}
+.label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+a{color:var(--accent)}
+
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);max-width:560px;margin:0 auto;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;padding-block:14px 10px;border-bottom:1px solid var(--line)}
+.brand{font-family:var(--display);font-weight:800;font-size:22px;letter-spacing:.04em;text-transform:uppercase}
+.brand span{color:var(--accent)}
+.datenav{display:flex;align-items:center;gap:4px}
+.datenav button{border:1px solid var(--line);background:var(--surface);border-radius:8px;width:34px;height:34px;font-size:16px}
+.datenav .d{font-family:var(--display);font-weight:600;font-size:17px;min-width:92px;text-align:center}
+
+.banner{background:var(--surface);border:1px dashed var(--line);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.banner b{color:var(--ink)}
+
+.summary{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center}
+.ring{position:relative;width:138px;height:138px}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.ring .big{font-family:var(--display);font-weight:800;font-size:38px;line-height:1}
+.ring .sub{font-size:12px;color:var(--muted);max-width:100px}
+.macros{display:flex;flex-direction:column;gap:12px;min-width:0}
+.macro .row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.macro .name{font-weight:600;font-size:14px}
+.macro .num{font-family:var(--display);font-size:17px;font-weight:600}
+.macro .num small{color:var(--muted);font-weight:500;font-size:13px}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin-top:4px}
+.bar i{display:block;height:100%;border-radius:4px}
+.pro i{background:var(--pro)} .carb i{background:var(--carb)} .fat i{background:var(--fat)}
+.status{font-size:13px;color:var(--muted)}
+.status b.ok{color:var(--good)} .status b.over{color:var(--over)}
+
+.meals{display:flex;flex-direction:column;gap:10px}
+.meal{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.meal-head{display:grid;grid-template-columns:56px 1fr auto;gap:12px;align-items:center;padding:10px;width:100%;text-align:left;background:none;border:0}
+.thumb{width:56px;height:56px;border-radius:8px;object-fit:cover;background:var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--muted);font-size:13px}
+.meal-head .t{min-width:0}
+.meal-head .t div:first-child{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chips{display:flex;gap:8px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.chips .p{color:var(--pro)} .chips .cb{color:var(--carb)} .chips .f{color:var(--fat)}
+.meal-head .k{font-family:var(--display);font-weight:700;font-size:20px}
+.meal-body{border-top:1px solid var(--line);padding:10px 12px;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.meal-body .it{display:flex;justify-content:space-between;gap:10px}
+.empty{text-align:center;padding:28px 16px;border:1px dashed var(--line);border-radius:12px;color:var(--muted)}
+.empty h3{color:var(--ink);margin-bottom:4px}
+
+.btn{border:0;border-radius:10px;padding:12px 16px;font-weight:600;background:var(--accent);color:var(--accent-ink);display:inline-flex;align-items:center;justify-content:center;gap:8px;text-align:center}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
+.btn.danger{background:transparent;border:1px solid var(--over);color:var(--over)}
+.btn.small{padding:8px 12px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.wide{width:100%}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap}
+.btnrow .btn{flex:1 1 auto}
+.linkbtn{border:0;background:none;color:var(--accent);text-decoration:underline;padding:0;font-size:inherit}
+
+/* Photo pickers: the real file input covers the whole tap target */
+.picker{position:relative;overflow:hidden}
+.picker input[type=file]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:3;font-size:0}
+.picker:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.shoot{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.shoot .picker{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border-radius:14px;padding:22px 10px;text-align:center}
+.shoot .cam{background:var(--accent);color:var(--accent-ink)}
+.shoot .gal{background:var(--surface);border:2px dashed var(--line)}
+.shoot strong{font-family:var(--display);font-size:20px}
+.preview{width:100%;max-width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:12px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field input,.field select,.field textarea{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px;width:100%}
+.card .field input,.card .field select{background:var(--bg)}
+textarea{resize:vertical;min-height:64px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{flex:1;border:0;background:var(--surface);padding:9px 4px;font-size:13px;font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+
+.review{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.ritem{display:grid;grid-template-columns:1fr 78px 28px;gap:8px;align-items:center;padding-block:8px;border-bottom:1px solid var(--line)}
+.ritem:last-of-type{border-bottom:0}
+.ritem .n{min-width:0}
+.ritem .n input{border:0;background:transparent;font-weight:600;padding:0;width:100%}
+.ritem .gram{display:flex;align-items:center;gap:2px;border:1px solid var(--line);border-radius:8px;padding:4px 6px;background:var(--bg)}
+.ritem .gram input{width:100%;border:0;background:transparent;text-align:right;padding:0}
+.ritem .x{border:0;background:none;color:var(--muted);font-size:18px}
+.rtotal{display:flex;justify-content:space-between;font-family:var(--display);font-size:18px;font-weight:700;gap:8px;flex-wrap:wrap}
+.note{font-size:13px;color:var(--muted)}
+.spin{width:22px;height:22px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite;flex:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){.spin{animation-duration:3s}}
+.err{color:var(--over);font-size:13px}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.stats,.deltas{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat .v{font-family:var(--display);font-size:24px;font-weight:700;line-height:1.1}
+.chart{width:100%;overflow-x:auto}
+.chart svg{display:block;width:100%;height:auto}
+.inline{display:flex;gap:8px}
+.inline input{flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px}
+.tgt{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center}
+.tgt .v{font-family:var(--display);font-size:22px;font-weight:700}
+
+.poses{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pose{position:relative;aspect-ratio:3/4;max-width:100%;border:2px dashed var(--line);border-radius:10px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted);text-align:center;padding:6px}
+.pose.has{border-style:solid}
+.pose img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.lbl{position:absolute;left:6px;bottom:6px;background:var(--ink);color:var(--bg);font-size:10px;padding:2px 6px;border-radius:4px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;z-index:2}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.compare figure{margin:0;position:relative}
+.compare img,.compare .ph{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:8px;background:var(--line)}
+.compare .ph{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px}
+.pill{display:inline-block;padding:3px 10px;border-radius:999px;font-weight:700;font-size:12px;letter-spacing:.04em;text-transform:uppercase}
+.pill.hold{background:color-mix(in srgb,var(--good) 16%,transparent);color:var(--good)}
+.pill.down{background:color-mix(in srgb,var(--pro) 16%,transparent);color:var(--pro)}
+.pill.up{background:color-mix(in srgb,var(--fat) 16%,transparent);color:var(--fat)}
+.pill.base{background:var(--line);color:var(--ink)}
+.ci{display:grid;grid-template-columns:42px 1fr auto;gap:10px;align-items:center;padding-block:8px;border-bottom:1px solid var(--line)}
+.ci:last-child{border-bottom:0}
+.ci img,.ci .ph{width:42px;height:56px;object-fit:cover;border-radius:6px;background:var(--line)}
+.ci .x{border:0;background:none;color:var(--muted);font-size:13px;text-decoration:underline}
+.ai{background:var(--bg)}
+.ai ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+select.sel{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;width:100%}
+
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);
+  display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px);
+  padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
+nav.tabs .in{display:flex;max-width:560px;width:100%}
+nav.tabs button{flex:1;border:0;background:none;padding:10px 2px 12px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.02em;text-transform:uppercase;white-space:nowrap;min-width:0}
+nav.tabs button svg{width:22px;height:22px}
+nav.tabs button[aria-current="page"]{color:var(--accent)}
+nav.tabs .snap{position:relative;top:-14px}
+nav.tabs .snap .dot{width:52px;height:52px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(92px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:999px;font-size:13px;z-index:9;max-width:calc(100% - 32px);text-align:center}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">Plate<span>Log</span></div>
+  <div class="datenav" id="datenav">
+    <button id="prevDay" aria-label="Previous day">‹</button>
+    <div class="d" id="dateLabel">Today</div>
+    <button id="nextDay" aria-label="Next day">›</button>
+  </div>
+</header>
+
+<main class="wrap" style="padding-top:16px">
+
+  <!-- TODAY -->
+  <section id="v-today" class="wrap">
+    <div id="keyNote" class="banner" hidden><span><b>Add your Claude API key</b> to get calorie estimates from photos. Manual logging works without it.</span><button class="btn ghost small" data-go="setup">Set up</button></div>
+    <div id="ciDue" class="banner" hidden></div>
+    <div id="exampleNote" class="banner" hidden><span><b>Example targets.</b> Enter your weight and goal under Setup so the numbers are yours.</span></div>
+    <div class="summary">
+      <div class="ring">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <circle cx="60" cy="60" r="52" fill="none" stroke="var(--line)" stroke-width="12"/>
+          <circle id="ringArc" cx="60" cy="60" r="52" fill="none" stroke="var(--accent)" stroke-width="12" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="326.7"/>
+        </svg>
+        <div class="c"><div class="big" id="kLeft">0</div><div class="sub" id="kLeftLbl">kcal left</div></div>
+      </div>
+      <div class="macros">
+        <div class="macro pro"><div class="row"><span class="name">Protein</span><span class="num" id="mPro">0</span></div><div class="bar"><i id="bPro" style="width:0"></i></div></div>
+        <div class="macro carb"><div class="row"><span class="name">Carbs</span><span class="num" id="mCarb">0</span></div><div class="bar"><i id="bCarb" style="width:0"></i></div></div>
+        <div class="macro fat"><div class="row"><span class="name">Fat</span><span class="num" id="mFat">0</span></div><div class="bar"><i id="bFat" style="width:0"></i></div></div>
+      </div>
+    </div>
+    <div class="status" id="statusLine"></div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <h2>Meals</h2><span class="label" id="mealCount"></span>
+    </div>
+    <div class="meals" id="mealList"></div>
+  </section>
+
+  <!-- ADD -->
+  <section id="v-add" class="wrap" hidden>
+    <h2>Log a meal</h2>
+    <div id="addStart" class="wrap">
+      <div class="shoot">
+        <div class="picker cam">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+          <strong>Take photo</strong>
+          <input type="file" id="photoCam" accept="image/*" capture="environment" aria-label="Take a meal photo">
+        </div>
+        <div class="picker gal">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 17l-5-5-9 8"/></svg>
+          <strong>From gallery</strong>
+          <input type="file" id="photoGal" accept="image/*" aria-label="Choose a meal photo">
+        </div>
+      </div>
+      <div class="note">Shoot from above with the whole plate in frame. A fork or your hand in shot helps judge size.</div>
+      <div class="field"><span class="label">Or describe it</span>
+        <textarea id="descIn" placeholder="e.g. 2 scrambled eggs, 2 slices sourdough with butter, flat white"></textarea></div>
+      <div class="btnrow"><button class="btn" id="describeBtn">Estimate from description</button><button class="btn ghost" id="manualBtn">Enter by hand</button></div>
+    </div>
+
+    <div id="addWork" class="wrap" hidden>
+      <img id="prevImg" class="preview" alt="Your meal photo" hidden>
+      <div class="field" id="hintWrap"><span class="label">Anything the photo won't show? (optional)</span>
+        <input id="hintIn" placeholder="e.g. cooked in 1 tbsp olive oil, 250g steak"></div>
+      <div class="btnrow" id="analyseRow"><button class="btn" id="analyseBtn">Estimate calories</button><button class="btn ghost" id="cancelBtn">Cancel</button></div>
+      <div id="busy" style="display:flex;gap:10px;align-items:center" hidden><div class="spin"></div><span class="note">Weighing it up…</span></div>
+      <div id="aiErr" class="err" hidden></div>
+    </div>
+
+    <div id="reviewBox" class="review" hidden>
+      <div class="field"><span class="label">Meal</span><input id="mealName" placeholder="Meal name"></div>
+      <div class="seg" id="slotSeg" role="group" aria-label="Meal slot">
+        <button data-s="Breakfast">Breakfast</button><button data-s="Lunch">Lunch</button><button data-s="Dinner">Dinner</button><button data-s="Snack">Snack</button>
+      </div>
+      <div><span class="label">Items · adjust grams if the guess is off</span><div id="ritems"></div></div>
+      <button class="btn ghost" id="addItemBtn">+ Add item</button>
+      <div id="manualForm" class="grid2" hidden>
+        <div class="field"><span class="label">Item</span><input id="mfName" placeholder="Protein shake"></div>
+        <div class="field"><span class="label">Grams</span><input id="mfG" type="number" inputmode="decimal" placeholder="300"></div>
+        <div class="field"><span class="label">kcal</span><input id="mfK" type="number" inputmode="decimal"></div>
+        <div class="field"><span class="label">Protein g</span><input id="mfP" type="number" inputmode="decimal"></div>
+        <div class="field"><span class="label">Carbs g</span><input id="mfC" type="number" inputmode="decimal"></div>
+        <div class="field"><span class="label">Fat g</span><input id="mfF" type="number" inputmode="decimal"></div>
+        <button class="btn" id="mfAdd" style="grid-column:1/-1">Add to meal</button>
+      </div>
+      <div class="rtotal" id="rtotal"></div>
+      <div class="note" id="aiNote"></div>
+      <div class="btnrow"><button class="btn" id="saveMeal">Save meal</button><button class="btn ghost" id="discardBtn">Discard</button></div>
+    </div>
+  </section>
+
+  <!-- PROGRESS -->
+  <section id="v-progress" class="wrap" hidden>
+    <h2>Progress</h2>
+    <div class="card">
+      <span class="label">Last 7 days</span>
+      <div class="stats">
+        <div class="stat"><div class="v" id="avgK">–</div><div class="note">avg kcal</div></div>
+        <div class="stat"><div class="v" id="avgP" style="color:var(--pro)">–</div><div class="note">avg protein</div></div>
+        <div class="stat"><div class="v" id="hitDays">–</div><div class="note">days on target</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <span class="label">Calories · 14 days vs target</span>
+      <div class="chart" id="kChart"></div>
+    </div>
+    <div class="card">
+      <span class="label">Bodyweight</span>
+      <div class="inline"><input id="wIn" type="number" inputmode="decimal" step="0.1" placeholder="Today's weight (kg)" aria-label="Today's weight in kg"><button class="btn" id="wSave">Log</button></div>
+      <div class="chart" id="wChart"></div>
+      <div class="note" id="wNote">Weigh in first thing after the toilet, before food. Judge the weekly trend, not single days.</div>
+    </div>
+  </section>
+
+  <!-- CHECK-IN -->
+  <section id="v-checkin" class="wrap" hidden>
+    <h2>Weekly check-in</h2>
+    <div class="card" id="ciStatus"></div>
+    <div class="card">
+      <span class="label">This week's photos</span>
+      <div class="poses">
+        <div class="pose picker" id="poseFront"><span class="pv">Tap to add</span><span class="lbl">Front</span><input type="file" data-pose="front" accept="image/*" aria-label="Add front photo"></div>
+        <div class="pose picker" id="poseSide"><span class="pv">Tap to add</span><span class="lbl">Side</span><input type="file" data-pose="side" accept="image/*" aria-label="Add side photo"></div>
+        <div class="pose picker" id="poseBack"><span class="pv">Tap to add</span><span class="lbl">Back</span><input type="file" data-pose="back" accept="image/*" aria-label="Add back photo"></div>
+      </div>
+      <div class="note">Same spot, same light, first thing in the morning before food, same shorts. Phone at chest height about 2 m away, or use the timer. Stand relaxed, not flexed.</div>
+      <div class="grid2">
+        <div class="field"><span class="label">Weight (kg)</span><input id="ciW" type="number" inputmode="decimal" step="0.1"></div>
+        <div class="field"><span class="label">Waist at navel (cm)</span><input id="ciWaist" type="number" inputmode="decimal" step="0.5" placeholder="Optional"></div>
+      </div>
+      <button class="btn wide" id="ciSave">Save check-in</button>
+      <div class="err" id="ciErr" hidden></div>
+    </div>
+    <div class="card" id="ciResult" hidden></div>
+    <div class="card" id="cmpCard" hidden>
+      <span class="label">Side by side</span>
+      <div class="seg" id="poseSeg" role="group" aria-label="Pose">
+        <button data-p="front">Front</button><button data-p="side">Side</button><button data-p="back">Back</button>
+      </div>
+      <div class="grid2">
+        <select id="cmpA" class="sel" aria-label="Earlier check-in"></select>
+        <select id="cmpB" class="sel" aria-label="Later check-in"></select>
+      </div>
+      <div class="compare" id="cmpView"></div>
+    </div>
+    <div class="card" id="histCard" hidden>
+      <span class="label">History</span>
+      <div id="ciList"></div>
+    </div>
+  </section>
+
+  <!-- SETUP -->
+  <section id="v-setup" class="wrap" hidden>
+    <h2>Setup</h2>
+    <div class="card">
+      <span class="label">Your body</span>
+      <div class="grid2">
+        <div class="field"><span class="label">Weight (kg)</span><input id="tW" type="number" inputmode="decimal" step="0.1"></div>
+        <div class="field"><span class="label">Height (cm)</span><input id="tH" type="number" inputmode="decimal"></div>
+        <div class="field"><span class="label">Age</span><input id="tA" type="number" inputmode="numeric"></div>
+        <div class="field"><span class="label">Sex</span><select id="tS"><option value="m">Male</option><option value="f">Female</option></select></div>
+      </div>
+      <div class="field"><span class="label">Activity</span>
+        <select id="tAct">
+          <option value="1.375">Desk job, train 3x a week</option>
+          <option value="1.55">On your feet / train 4–5x a week</option>
+          <option value="1.725">Physical job and train most days</option>
+          <option value="1.9">Very hard labour plus training</option>
+        </select></div>
+      <div class="field"><span class="label">Goal</span>
+        <div class="seg" id="goalSeg" role="group" aria-label="Goal">
+          <button data-g="cut">Lose fat</button><button data-g="recomp">Recomp</button><button data-g="bulk">Lean bulk</button>
+        </div></div>
+      <div class="note" id="goalNote"></div>
+    </div>
+    <div class="card">
+      <span class="label">Daily targets</span>
+      <div class="tgt">
+        <div><div class="v" id="oK">–</div><div class="note">kcal</div></div>
+        <div><div class="v" id="oP" style="color:var(--pro)">–</div><div class="note">protein g</div></div>
+        <div><div class="v" id="oC" style="color:var(--carb)">–</div><div class="note">carbs g</div></div>
+        <div><div class="v" id="oF" style="color:var(--fat)">–</div><div class="note">fat g</div></div>
+      </div>
+      <div class="note" id="tdeeNote"></div>
+      <div class="note" id="adjNote" hidden></div>
+      <button class="btn wide" id="saveTargets">Save targets</button>
+    </div>
+    <div class="card">
+      <span class="label">Claude photo estimates</span>
+      <div class="note">Get a key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> and add a few dollars of credit. It stays on this phone only and is sent straight to Anthropic.</div>
+      <div class="field"><span class="label">API key</span><input id="apiKey" type="password" autocomplete="off" placeholder="sk-ant-..."></div>
+      <div class="field"><span class="label">Model</span>
+        <select id="model">
+          <option value="claude-sonnet-5-5">Sonnet 5.5 (recommended)</option>
+          <option value="claude-haiku-5-5">Haiku 5.5 (cheapest)</option>
+          <option value="claude-opus-5-5">Opus 5.5 (most careful)</option>
+        </select></div>
+      <div class="btnrow"><button class="btn" id="saveKey">Save key</button><button class="btn ghost" id="testKey">Test key</button></div>
+      <div class="note" id="keyStatus"></div>
+    </div>
+    <div class="card">
+      <span class="label">Backup</span>
+      <div class="note">Everything is stored on this phone. Save a backup now and then, and use it to move to a new phone.</div>
+      <div class="btnrow">
+        <button class="btn ghost" id="exportBtn">Save backup</button>
+        <div class="btn ghost picker">Restore backup<input type="file" id="importIn" accept="application/json,.json" aria-label="Restore backup file"></div>
+      </div>
+      <div class="note" id="storeNote"></div>
+    </div>
+  </section>
+</main>
+
+<nav class="tabs" aria-label="Sections"><div class="in">
+  <button data-v="today" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>Today</button>
+  <button data-v="progress"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-6"/></svg>Progress</button>
+  <button data-v="add" class="snap" aria-label="Log a meal"><span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span></button>
+  <button data-v="checkin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="2.2"/><path d="M8 21l1-8-3-1 1-4h10l1 4-3 1 1 8"/></svg>Check-in</button>
+  <button data-v="setup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg>Setup</button>
+</div></nav>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+const $ = id => document.getElementById(id);
+const r0 = n => Math.round(n||0);
+const today = () => new Date().toLocaleDateString('en-CA');
+const addDays = (d,n) => { const x = new Date(d+'T12:00:00'); x.setDate(x.getDate()+n); return x.toLocaleDateString('en-CA'); };
+const esc = s => String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const uid = p => p+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+function toast(t){ const el=$('toast'); el.textContent=t; el.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>el.hidden=true,2600); }
+
+const DEFAULT_PROFILE = {w:95,h:180,a:35,s:'m',act:1.725,goal:'cut',adj:0};
+const S = { settings:null, meals:[], weights:[], checkins:[], date:today(), view:'today', openMeal:null, confirmDel:null };
+
+/* ---------- local database (IndexedDB) ---------- */
+let idb=null;
+function openDB(){ return new Promise((res,rej)=>{ const q=indexedDB.open('platelog',1);
+  q.onupgradeneeded=()=>{ const d=q.result; if(!d.objectStoreNames.contains('docs')) d.createObjectStore('docs',{keyPath:'id'}); if(!d.objectStoreNames.contains('photos')) d.createObjectStore('photos'); };
+  q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); }); }
+function tx(store, mode, fn){ return new Promise((res,rej)=>{ const t=idb.transaction(store,mode); const s=t.objectStore(store); const out=fn(s); t.oncomplete=()=>res(out&&out.result!==undefined?out.result:out); t.onerror=()=>rej(t.error); t.onabort=()=>rej(t.error); }); }
+const db = {
+  all: () => tx('docs','readonly',s=>s.getAll()),
+  put: doc => tx('docs','readwrite',s=>{ s.put(doc); }),
+  del: id => tx('docs','readwrite',s=>{ s.delete(id); }),
+  putPhoto: (id,blob) => tx('photos','readwrite',s=>{ s.put(blob,id); }),
+  getPhoto: id => tx('photos','readonly',s=>s.get(id)),
+  delPhoto: id => tx('photos','readwrite',s=>{ s.delete(id); }),
+  photoKeys: () => tx('photos','readonly',s=>s.getAllKeys()),
+};
+function ingest(docs){
+  S.meals=[]; S.weights=[]; S.checkins=[]; S.settings=null;
+  docs.forEach(d=>{ if(d.kind==='meal') S.meals.push(d); else if(d.kind==='weight') S.weights.push(d); else if(d.kind==='checkin') S.checkins.push(d); else if(d.id==='settings') S.settings=d; });
+}
+const store = {
+  async put(doc){ await db.put(doc);
+    const arr = doc.kind==='meal'?S.meals:doc.kind==='weight'?S.weights:doc.kind==='checkin'?S.checkins:null;
+    if(arr){ const i=arr.findIndex(x=>x.id===doc.id); if(i>=0) arr[i]=doc; else arr.push(doc); } else if(doc.id==='settings') S.settings=doc;
+    render(); },
+  async del(doc){ await db.del(doc.id);
+    ['meals','weights','checkins'].forEach(k=>S[k]=S[k].filter(x=>x.id!==doc.id)); render(); },
+  saveSettings(p){ return store.put({...p, id:'settings', kind:'settings'}); }
+};
+
+/* photo object URLs, cached per id */
+const urlCache=new Map();
+async function photoURL(id){ if(!id) return null; if(urlCache.has(id)) return urlCache.get(id);
+  const b=await db.getPhoto(id).catch(()=>null); if(!b) return null; const u=URL.createObjectURL(b); urlCache.set(id,u); return u; }
+
+/* ---------- targets ---------- */
+function calc(p){
+  const bmr = 10*p.w + 6.25*p.h - 5*p.a + (p.s==='m'?5:-161);
+  const tdee = bmr*p.act;
+  const mult = {cut:0.8, recomp:0.92, bulk:1.08}[p.goal]||0.8;
+  const kcal = Math.max(Math.round(tdee*mult/10)*10 + (+p.adj||0), Math.round(bmr/10)*10);
+  const pro = Math.round(p.w*(p.goal==='bulk'?2.0:2.2));
+  const fat = Math.round(p.w*0.8);
+  const carb = Math.max(0, Math.round((kcal - pro*4 - fat*9)/4));
+  return {bmr:r0(bmr), tdee:r0(tdee), kcal, pro, carb, fat};
+}
+const prof = () => S.settings || DEFAULT_PROFILE;
+const tg = () => calc(prof());
+
+/* ---------- Claude API ---------- */
+const KEY_LS='platelog.key', MODEL_LS='platelog.model';
+const getKey = () => { try{ return localStorage.getItem(KEY_LS)||''; }catch(e){ return ''; } };
+const getModel = () => { try{ return localStorage.getItem(MODEL_LS)||'claude-sonnet-5-5'; }catch(e){ return 'claude-sonnet-5-5'; } };
+function blobToB64(b){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(',')[1]); r.onerror=rej; r.readAsDataURL(b); }); }
+async function askClaude(prompt, images=[], maxTokens=1500){
+  const key=getKey(); if(!key) throw {code:'nokey'};
+  const content=[];
+  for(const b of images) content.push({type:'image',source:{type:'base64',media_type:b.type||'image/jpeg',data:await blobToB64(b)}});
+  content.push({type:'text',text:prompt});
+  let res;
+  try{
+    res = await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{
+      'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:getModel(),max_tokens:maxTokens,messages:[{role:'user',content}]})});
+  }catch(e){ throw {code:'network'}; }
+  const body = await res.json().catch(()=>({}));
+  if(!res.ok){ const m=(body.error&&body.error.message)||''; throw {code: res.status===401?'badkey': res.status===429?'rate': res.status===529||res.status>=500?'busy': /credit/i.test(m)?'credit': res.status===404?'model':'api', message:m}; }
+  const text=(body.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('');
+  const a=text.indexOf('{'), z=text.lastIndexOf('}');
+  if(a<0||z<a) throw {code:'parse'};
+  try{ return JSON.parse(text.slice(a,z+1)); }catch(e){ throw {code:'parse'}; }
+}
+function aiErrMsg(e){ const c=e&&e.code;
+  return c==='nokey' ? 'Add your Claude API key under Setup first.'
+    : c==='badkey' ? 'Anthropic rejected the API key. Check it under Setup.'
+    : c==='credit' ? 'Your Anthropic account is out of credit. Top up at console.anthropic.com.'
+    : c==='rate' ? 'Too many requests. Wait a minute and try again.'
+    : c==='busy' ? 'Claude is busy right now. Try again in a moment.'
+    : c==='network' ? 'No connection. Check your signal and try again.'
+    : c==='model' ? 'That model is not available on your account. Pick another under Setup.'
+    : c==='parse' ? 'Claude replied in an unexpected format. Try again.'
+    : (e&&e.message) ? 'Error from Anthropic: '+e.message : 'Something went wrong. Try again.'; }
+
+/* ---------- helpers ---------- */
+const sumItems = items => items.reduce((a,i)=>({k:a.k+(+i.kcal||0),p:a.p+(+i.p||0),c:a.c+(+i.c||0),f:a.f+(+i.f||0)}),{k:0,p:0,c:0,f:0});
+const dayTotals = d => sumItems(S.meals.filter(m=>m.date===d).flatMap(m=>m.items||[]));
+function dateLabel(d){ const t=today(); if(d===t) return 'Today'; if(d===addDays(t,-1)) return 'Yesterday';
+  return new Date(d+'T12:00:00').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'}); }
+function loadImg(file){ return new Promise((res,rej)=>{ const u=URL.createObjectURL(file), im=new Image(); im.onload=()=>res({im,u}); im.onerror=()=>{ URL.revokeObjectURL(u); rej(new Error('decode')); }; im.src=u; }); }
+function draw(im,max){ const s=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight)); const c=document.createElement('canvas');
+  c.width=Math.round(im.naturalWidth*s); c.height=Math.round(im.naturalHeight*s); c.getContext('2d').drawImage(im,0,0,c.width,c.height); return c; }
+const toBlob = (c,q=0.85) => new Promise(r=>c.toBlob(r,'image/jpeg',q));
+
+/* ---------- render ---------- */
+function render(){
+  $('dateLabel').textContent = dateLabel(S.date);
+  $('nextDay').disabled = S.date>=today();
+  $('datenav').style.visibility = S.view==='today' ? 'visible' : 'hidden';
+  $('keyNote').hidden = !!getKey();
+  renderToday(); renderDue();
+  if(S.view==='progress') renderProgress();
+  if(S.view==='setup') renderTargets(false);
+  if(S.view==='checkin') renderCheckin();
+}
+function renderToday(){
+  const t=tg(), d=dayTotals(S.date);
+  $('exampleNote').hidden = !!S.settings;
+  const left = t.kcal - d.k;
+  $('kLeft').textContent = Math.abs(r0(left)).toLocaleString();
+  $('kLeftLbl').textContent = left>=0 ? `kcal left of ${t.kcal.toLocaleString()}` : `kcal over ${t.kcal.toLocaleString()}`;
+  const arc=$('ringArc'); arc.setAttribute('stroke-dashoffset', (326.7*(1-Math.min(d.k/t.kcal,1))).toFixed(1));
+  arc.setAttribute('stroke', left<0 ? 'var(--over)' : 'var(--accent)');
+  const setM=(id,bar,v,goal)=>{ $(id).innerHTML=`${r0(v)}<small> / ${goal}g</small>`; $(bar).style.width=Math.min(100,goal?v/goal*100:0)+'%'; };
+  setM('mPro','bPro',d.p,t.pro); setM('mCarb','bCarb',d.c,t.carb); setM('mFat','bFat',d.f,t.fat);
+  const pLeft = t.pro - d.p; let s;
+  if(d.k===0) s='Nothing logged yet. Tap the camera to add your first meal.';
+  else if(pLeft>0) s=`Still need <b>${r0(pLeft)}g protein</b>${left>0?` in ${r0(left)} kcal`:''}. ${pLeft>40?'Lean meat, eggs, Greek yoghurt or a shake will close it.':''}`;
+  else s = left>=0 ? '<b class="ok">Protein hit and under calories.</b> That is a good day.' : '<b class="over">Protein hit, but over calories.</b> Keep tomorrow tight.';
+  $('statusLine').innerHTML=s;
+  const meals = S.meals.filter(m=>m.date===S.date).sort((a,b)=>a.ts-b.ts);
+  $('mealCount').textContent = meals.length ? `${meals.length} logged` : '';
+  const list=$('mealList');
+  if(!meals.length){ list.innerHTML=`<div class="empty"><h3>No meals for ${dateLabel(S.date).toLowerCase()}</h3>Photograph a plate or describe what you ate. Each meal shows its calories and protein here.</div>`; return; }
+  list.innerHTML = meals.map(m=>{ const x=sumItems(m.items||[]); const open=S.openMeal===m.id;
+    return `<div class="meal"><button class="meal-head" data-open="${esc(m.id)}" aria-expanded="${open}">
+      ${m.thumb?`<img class="thumb" src="${esc(m.thumb)}" alt="">`:`<span class="thumb">${esc((m.slot||'Meal').slice(0,5))}</span>`}
+      <div class="t"><div>${esc(m.name||'Meal')}</div><div class="chips"><span>${esc(m.slot||'')}</span><span class="p">P ${r0(x.p)}g</span><span class="cb">C ${r0(x.c)}g</span><span class="f">F ${r0(x.f)}g</span></div></div>
+      <div class="k">${r0(x.k)}</div></button>
+      ${open?`<div class="meal-body">${(m.items||[]).map(i=>`<div class="it"><span>${esc(i.name)} · ${r0(i.grams)}g</span><span>${r0(i.kcal)} kcal · P ${r0(i.p)}</span></div>`).join('')}
+        <div class="btnrow" style="margin-top:6px">${S.confirmDel===m.id?`<button class="btn danger" data-del="${esc(m.id)}">Yes, delete</button><button class="btn ghost" data-nodel>Keep</button>`:`<button class="btn ghost" data-askdel="${esc(m.id)}">Delete meal</button>`}</div></div>`:''}
+    </div>`; }).join('');
+}
+function bars(days){
+  const t=tg(), W=340, H=150, pad=26, bw=(W-pad)/days.length;
+  const vals=days.map(d=>dayTotals(d).k), max=Math.max(t.kcal*1.25, ...vals);
+  const y=v=>H-18-(v/max)*(H-30);
+  let g=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Daily calories">`;
+  g+=`<line x1="${pad}" x2="${W}" y1="${y(t.kcal)}" y2="${y(t.kcal)}" stroke="var(--muted)" stroke-dasharray="4 4" stroke-width="1"/>`;
+  g+=`<text x="0" y="${y(t.kcal)+4}" font-size="9" fill="var(--muted)">${(t.kcal/1000).toFixed(1)}k</text>`;
+  days.forEach((d,i)=>{ const v=vals[i], x=pad+i*bw+2, h=Math.max(0,(H-18)-y(v));
+    const col = v===0?'var(--line)':(v>t.kcal*1.05?'var(--over)':'var(--accent)');
+    g+=`<rect x="${x}" y="${v?y(v):H-20}" width="${bw-4}" height="${v?h:2}" rx="2" fill="${col}"/>`;
+    if(i%2===days.length%2 || i===days.length-1) g+=`<text x="${x+(bw-4)/2}" y="${H-4}" font-size="9" text-anchor="middle" fill="var(--muted)">${new Date(d+'T12:00:00').getDate()}</text>`; });
+  return g+'</svg>';
+}
+function wline(){
+  const w=[...S.weights].sort((a,b)=>a.date<b.date?-1:1).slice(-30);
+  if(w.length<2) return `<div class="note">${w.length?`Logged ${w[0].kg} kg. One more weigh-in draws the trend.`:'No weigh-ins yet. Log one each morning.'}</div>`;
+  const W=340,H=140,px=30, vs=w.map(x=>x.kg), mn=Math.min(...vs)-0.5, mx=Math.max(...vs)+0.5;
+  const X=i=>px+i*(W-px-8)/(w.length-1), Y=v=>10+(mx-v)/(mx-mn)*(H-30);
+  const pts=w.map((x,i)=>`${X(i).toFixed(1)},${Y(x.kg).toFixed(1)}`).join(' ');
+  let g=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Bodyweight trend">`;
+  [mx-0.5,(mx+mn)/2,mn+0.5].forEach(v=>{ g+=`<line x1="${px}" x2="${W}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="0" y="${Y(v)+3}" font-size="9" fill="var(--muted)">${v.toFixed(1)}</text>`; });
+  g+=`<polygon points="${px},${H-20} ${pts} ${X(w.length-1)},${H-20}" fill="var(--accent)" opacity=".12"/>`;
+  g+=`<polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round"/>`;
+  const L=w[w.length-1]; g+=`<circle cx="${X(w.length-1)}" cy="${Y(L.kg)}" r="4" fill="var(--accent)"/>`;
+  g+=`<text x="${px}" y="${H-4}" font-size="9" fill="var(--muted)">${dateLabel(w[0].date)}</text><text x="${W}" y="${H-4}" font-size="9" text-anchor="end" fill="var(--muted)">${dateLabel(L.date)}</text>`;
+  return g+'</svg>';
+}
+function renderProgress(){
+  const t=tg(), last7=[...Array(7)].map((_,i)=>addDays(today(),-i));
+  const logged=last7.filter(d=>dayTotals(d).k>0), tot=logged.map(dayTotals);
+  $('avgK').textContent = logged.length ? r0(tot.reduce((a,x)=>a+x.k,0)/logged.length).toLocaleString() : '–';
+  $('avgP').textContent = logged.length ? r0(tot.reduce((a,x)=>a+x.p,0)/logged.length)+'g' : '–';
+  $('hitDays').textContent = logged.length ? `${tot.filter(x=>x.k<=t.kcal*1.05 && x.p>=t.pro*0.9).length}/${logged.length}` : '–';
+  $('kChart').innerHTML = bars([...Array(14)].map((_,i)=>addDays(today(),i-13)));
+  $('wChart').innerHTML = wline();
+  const w=[...S.weights].sort((a,b)=>a.date<b.date?-1:1);
+  if(w.length>=8){ const a=w.slice(-7), b=w.slice(-14,-7); if(b.length>=3){
+    const avg=x=>x.reduce((s,y)=>s+y.kg,0)/x.length, diff=avg(a)-avg(b);
+    $('wNote').textContent=`Weekly average ${avg(a).toFixed(1)} kg, ${diff<=0?'down':'up'} ${Math.abs(diff).toFixed(2)} kg on last week. Aim for 0.5–1% of bodyweight a week when cutting.`; } }
+}
+
+/* ---------- setup / targets ---------- */
+let tGoal='cut';
+function readT(){ return {w:+$('tW').value||0,h:+$('tH').value||0,a:+$('tA').value||0,s:$('tS').value,act:+$('tAct').value,goal:tGoal,adj:+(prof().adj||0)}; }
+function renderTargets(fromInput){
+  if(!fromInput){ const p=prof(); $('tW').value=p.w; $('tH').value=p.h; $('tA').value=p.a; $('tS').value=p.s; $('tAct').value=String(p.act); tGoal=p.goal;
+    $('model').value=getModel(); if(document.activeElement!==$('apiKey')) $('apiKey').value=getKey(); }
+  document.querySelectorAll('#goalSeg button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.g===tGoal));
+  $('goalNote').textContent = {cut:'About 20% under maintenance with high protein, so you drop fat and keep muscle.',recomp:'A small deficit with high protein. Slower fat loss, better for building while leaning out.',bulk:'A small surplus to add muscle with minimal fat gain.'}[tGoal];
+  const p=readT(); if(!(p.w&&p.h&&p.a)) return;
+  const c=calc(p);
+  $('oK').textContent=c.kcal.toLocaleString(); $('oP').textContent=c.pro; $('oC').textContent=c.carb; $('oF').textContent=c.fat;
+  $('tdeeNote').textContent=`Estimated maintenance ${c.tdee.toLocaleString()} kcal. Weekly check-ins fine-tune this from your real results.`;
+  const adj=+(prof().adj||0), an=$('adjNote'); an.hidden=!adj;
+  if(adj) an.innerHTML=`Includes <b>${adj>0?'+':''}${adj} kcal</b> from check-ins. <button class="linkbtn" id="adjReset">Reset to 0</button>`;
+}
+['tW','tH','tA','tS','tAct'].forEach(id=>$(id).addEventListener('input',()=>renderTargets(true)));
+$('goalSeg').onclick=e=>{ if(e.target.dataset.g){ tGoal=e.target.dataset.g; renderTargets(true); } };
+$('saveTargets').onclick=async()=>{ const p=readT(); if(!(p.w&&p.h&&p.a)){ toast('Fill in weight, height and age'); return; }
+  try{ await store.saveSettings(p); toast('Targets saved'); go('today'); }catch(e){ toast('Save failed. Try again.'); } };
+$('v-setup').addEventListener('click', async e=>{ if(e.target.id==='adjReset'){ await store.saveSettings({...prof(),adj:0}); toast('Adjustment cleared'); } });
+$('saveKey').onclick=()=>{ try{ localStorage.setItem(KEY_LS,$('apiKey').value.trim()); localStorage.setItem(MODEL_LS,$('model').value); toast('Saved'); $('keyStatus').textContent=''; render(); }catch(e){ toast('Could not save on this browser.'); } };
+$('model').onchange=()=>{ try{ localStorage.setItem(MODEL_LS,$('model').value); }catch(e){} };
+$('testKey').onclick=async()=>{ $('saveKey').click(); const st=$('keyStatus'); st.textContent='Testing…';
+  try{ const r=await askClaude('Reply with JSON only: {"ok":true}',[],50); st.textContent = r.ok ? 'Key works. Photo estimates are ready.' : 'Key works.'; }
+  catch(e){ st.textContent=aiErrMsg(e); } };
+
+/* ---------- backup ---------- */
+$('exportBtn').onclick=async()=>{
+  try{ const docs=await db.all(), keys=await db.photoKeys(), photos={};
+    for(const k of keys){ const b=await db.getPhoto(k); if(b) photos[k]=await blobToB64(b); }
+    const blob=new Blob([JSON.stringify({app:'platelog',v:1,saved:new Date().toISOString(),docs,photos})],{type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`platelog-backup-${today()}.json`; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),5000); toast('Backup saved to Downloads');
+  }catch(e){ toast('Backup failed. Try again.'); } };
+$('importIn').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  try{ const d=JSON.parse(await f.text()); if(d.app!=='platelog') throw 0;
+    for(const doc of d.docs||[]) await db.put(doc);
+    for(const [k,b64] of Object.entries(d.photos||{})){ const bin=atob(b64), u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); await db.putPhoto(k,new Blob([u],{type:'image/jpeg'})); }
+    ingest(await db.all()); render(); toast('Backup restored');
+  }catch(err){ toast('That file is not a Plate Log backup.'); } };
+
+/* ---------- meal photo + AI ---------- */
+let imgBlob=null, thumbURL=null, draft=null, aiNote='';
+async function mealFile(e){
+  const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  try{
+    const {im,u}=await loadImg(f);
+    imgBlob = await toBlob(draw(im,1280));
+    const sq=document.createElement('canvas'); sq.width=sq.height=160; const s=Math.min(im.naturalWidth,im.naturalHeight);
+    sq.getContext('2d').drawImage(im,(im.naturalWidth-s)/2,(im.naturalHeight-s)/2,s,s,0,0,160,160);
+    thumbURL=sq.toDataURL('image/jpeg',0.6);
+    $('prevImg').src=u; $('prevImg').hidden=false;
+    $('addStart').hidden=true; $('addWork').hidden=false; $('reviewBox').hidden=true; $('aiErr').hidden=true;
+    $('analyseRow').hidden=false; $('hintWrap').hidden=false;
+  }catch(err){ toast('Could not open that photo. Try another.'); }
+}
+$('photoCam').addEventListener('change',mealFile); $('photoGal').addEventListener('change',mealFile);
+function resetAdd(){ imgBlob=null; thumbURL=null; draft=null; aiNote='';
+  $('addStart').hidden=false; $('addWork').hidden=true; $('reviewBox').hidden=true; $('prevImg').hidden=true; $('hintIn').value=''; $('descIn').value=''; $('manualForm').hidden=true; $('aiErr').hidden=true; }
+$('cancelBtn').onclick=resetAdd; $('discardBtn').onclick=resetAdd;
+function guessSlot(){ const h=new Date().getHours(); return h<10.5?'Breakfast':h<15?'Lunch':h<20.5?'Dinner':'Snack'; }
+async function estimate(text, withImage){
+  $('addStart').hidden=true; $('addWork').hidden=false; $('analyseRow').hidden=true; $('hintWrap').hidden=true; $('busy').hidden=false; $('aiErr').hidden=true;
+  const prompt = `You are a sports nutritionist estimating a meal for someone tracking calories and protein to lose fat and build muscle. They are in Australia, so assume Australian portion sizes and products.
+${withImage?'The attached photo shows the meal. Identify every food and drink visible, estimate each portion weight in grams from plate size and visual cues, and include cooking oil, butter or sauces that are likely present.':'Estimate this meal from the description.'}
+${text?`Extra details from the person: ${text}`:''}
+Return JSON only, in this shape:
+{"meal_name": short name, "items":[{"name": string, "grams": number, "kcal": number, "protein_g": number, "carbs_g": number, "fat_g": number}], "confidence":"low"|"medium"|"high", "note": one short sentence naming the biggest uncertainty or a tip to hit protein}
+If no food is visible, return {"meal_name":"","items":[],"confidence":"low","note":"No food found in the photo."}`;
+  try{
+    const out = await askClaude(prompt, withImage&&imgBlob?[imgBlob]:[]);
+    const items=(out.items||[]).map(i=>({name:String(i.name||'Item'),grams:+i.grams||0,kcal:+i.kcal||0,p:+i.protein_g||0,c:+i.carbs_g||0,f:+i.fat_g||0}));
+    if(!items.length) throw {code:'none', message: out.note||'No food found.'};
+    draft={name:out.meal_name||'Meal', slot:guessSlot(), items:items.map(i=>({...i, base:{...i}}))};
+    aiNote = `${out.confidence?`Confidence: ${out.confidence}. `:''}${out.note||''}`;
+    openReview();
+  }catch(e){
+    $('busy').hidden=true;
+    $('aiErr').textContent = e&&e.code==='none' ? e.message : aiErrMsg(e); $('aiErr').hidden=false;
+    if(imgBlob){ $('analyseRow').hidden=false; $('hintWrap').hidden=false; } else { $('addStart').hidden=false; }
+  }
+}
+$('analyseBtn').onclick=()=>estimate($('hintIn').value.trim(), true);
+$('describeBtn').onclick=()=>{ const t=$('descIn').value.trim(); if(!t){ $('descIn').focus(); return; } imgBlob=null; thumbURL=null; $('prevImg').hidden=true; estimate(t,false); };
+$('manualBtn').onclick=()=>{ draft={name:'',slot:guessSlot(),items:[]}; aiNote=''; $('addStart').hidden=true; openReview(); $('manualForm').hidden=false; };
+function openReview(){
+  $('busy').hidden=true; $('addWork').hidden = !imgBlob; $('analyseRow').hidden=true; $('hintWrap').hidden=true;
+  $('reviewBox').hidden=false; $('mealName').value=draft.name; $('aiNote').textContent=aiNote; drawReview();
+}
+function drawReview(){
+  document.querySelectorAll('#slotSeg button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.s===draft.slot));
+  $('ritems').innerHTML = draft.items.map((i,n)=>`<div class="ritem">
+    <div class="n"><input id="rn${n}" data-n="${n}" data-f="name" value="${esc(i.name)}" aria-label="Item name"><div class="chips"><span>${r0(i.kcal)} kcal</span><span class="p">P ${r0(i.p)}</span><span class="cb">C ${r0(i.c)}</span><span class="f">F ${r0(i.f)}</span></div></div>
+    <label class="gram"><input id="rg${n}" data-n="${n}" data-f="grams" type="number" inputmode="decimal" value="${r0(i.grams)}" aria-label="Grams">g</label>
+    <button class="x" data-rm="${n}" aria-label="Remove ${esc(i.name)}">×</button></div>`).join('') || '<div class="note">No items yet.</div>';
+  const t=sumItems(draft.items);
+  $('rtotal').innerHTML=`<span>${r0(t.k)} kcal</span><span style="color:var(--pro)">P ${r0(t.p)}g</span><span style="color:var(--carb)">C ${r0(t.c)}g</span><span style="color:var(--fat)">F ${r0(t.f)}g</span>`;
+  $('saveMeal').disabled=!draft.items.length;
+}
+$('ritems').addEventListener('change', e=>{ const n=e.target.dataset.n; if(n==null) return; const it=draft.items[n];
+  if(e.target.dataset.f==='name') it.name=e.target.value;
+  else { const g=+e.target.value||0, b=it.base, k=b.grams?g/b.grams:0; Object.assign(it,{grams:g,kcal:b.kcal*k,p:b.p*k,c:b.c*k,f:b.f*k}); }
+  drawReview(); });
+$('ritems').addEventListener('click', e=>{ const n=e.target.dataset.rm; if(n!=null){ draft.items.splice(+n,1); drawReview(); } });
+$('slotSeg').onclick=e=>{ if(e.target.dataset.s){ draft.slot=e.target.dataset.s; drawReview(); } };
+$('addItemBtn').onclick=()=>{ $('manualForm').hidden=!$('manualForm').hidden; if(!$('manualForm').hidden) $('mfName').focus(); };
+$('mfAdd').onclick=()=>{ const i={name:$('mfName').value.trim()||'Item',grams:+$('mfG').value||0,kcal:+$('mfK').value||0,p:+$('mfP').value||0,c:+$('mfC').value||0,f:+$('mfF').value||0};
+  if(!i.kcal){ $('mfK').focus(); return; } if(!i.grams) i.grams=100; i.base={...i}; draft.items.push(i);
+  ['mfName','mfG','mfK','mfP','mfC','mfF'].forEach(id=>$(id).value=''); drawReview(); };
+$('saveMeal').onclick=async()=>{
+  const m={kind:'meal',id:uid('meal'),date:S.date,ts:Date.now(),name:$('mealName').value.trim()||draft.items.map(i=>i.name).slice(0,2).join(', '),slot:draft.slot,
+    items:draft.items.map(i=>({name:i.name,grams:r0(i.grams),kcal:r0(i.kcal),p:+(+i.p).toFixed(1),c:+(+i.c).toFixed(1),f:+(+i.f).toFixed(1)}))};
+  if(thumbURL) m.thumb=thumbURL;
+  $('saveMeal').disabled=true;
+  try{ await store.put(m); toast('Meal saved'); resetAdd(); go('today'); }
+  catch(e){ toast('Save failed. Phone storage may be full.'); $('saveMeal').disabled=false; }
+};
+
+/* ---------- weekly check-in ---------- */
+const POSES=['front','side','back'];
+const ciDraft={front:null,side:null,back:null};
+const cmp={a:null,b:null,pose:'front'};
+let ciDel=null, aiBusy=false;
+const sortedCI = () => [...S.checkins].sort((a,b)=> a.date===b.date ? a.ts-b.ts : (a.date<b.date?-1:1));
+const daysBetween = (a,b) => Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/864e5);
+const firstPhoto = c => c.photos && (c.photos.front||c.photos.side||c.photos.back);
+function avgWeight(date, fallback){ const lo=addDays(date,-6), ws=S.weights.filter(w=>w.date>=lo && w.date<=date);
+  return ws.length ? ws.reduce((s,w)=>s+w.kg,0)/ws.length : (fallback||null); }
+function recommend(cur, prev){
+  if(!prev) return {kind:'base', delta:0, title:'Baseline set', text:'This is your starting point. Next week\'s check-in gives the first comparison.'};
+  const days=Math.max(daysBetween(prev.date,cur.date),1), weeks=Math.max(days/7,0.5);
+  const w1=avgWeight(prev.date,prev.kg), w2=avgWeight(cur.date,cur.kg);
+  const dW = (w1&&w2) ? w2-w1 : null, rate = dW!=null ? dW/w1/weeks*100 : null;
+  const dWaist = (cur.waist&&prev.waist) ? cur.waist-prev.waist : null;
+  const waistDown = dWaist!=null && dWaist<=-0.5, waistUp = dWaist!=null && dWaist>=1;
+  const goal=prof().goal; let delta=0, title='On track, hold calories', text='';
+  if(rate==null) return {kind:'base',delta:0,title:'Need weights to judge',text:'Log your weight on both check-ins (or daily on Progress) to get a calorie call.',days,dW,rate,dWaist};
+  if(goal==='cut'){
+    if(rate>-0.25 && !waistDown){ delta=-150; title='Fat loss stalled, drop 150 kcal'; text='Weight and waist have barely moved. A small cut restarts the loss without hurting training.'; }
+    else if(rate<-1.2){ delta=150; title='Dropping too fast, add 150 kcal'; text='Losing over 1.2% a week risks muscle. Add a little food back, mostly carbs around training.'; }
+    else text = rate>-0.25 ? 'Scale is flat but your waist is down. That usually means fat loss with some muscle gain. Hold steady.' : 'Losing at a pace that keeps muscle. Change nothing.';
+  } else if(goal==='recomp'){
+    if(rate>0.25 && !waistDown){ delta=-100; title='Creeping up, drop 100 kcal'; text='Weight is rising without the waist coming down. Trim slightly.'; }
+    else if(rate<-0.75){ delta=100; title='Losing too fast for a recomp, add 100 kcal'; text='A recomp should hold weight roughly steady. Add a little food.'; }
+    else text='Weight is steady. Watch the photos and waist for the change.';
+  } else {
+    if(rate<0.1){ delta=150; title='Not gaining, add 150 kcal'; text='A lean bulk needs a slow gain of about 0.25–0.5% a week.'; }
+    else if(rate>0.6 || waistUp){ delta=-150; title='Gaining too fast, drop 150 kcal'; text='Faster gain or a growing waist is mostly fat. Pull back a little.'; }
+    else text='Gaining at a lean pace. Change nothing.';
+  }
+  if(days<5) text+=' Less than a week since the last check-in, so treat this lightly.';
+  return {kind: delta<0?'down':delta>0?'up':'hold', delta, title, text, days, dW, rate, dWaist};
+}
+function renderDue(){
+  const el=$('ciDue'), list=sortedCI(), last=list[list.length-1];
+  if(S.date!==today()){ el.hidden=true; return; }
+  if(!last){ el.hidden=false; el.innerHTML=`<span><b>Set your baseline.</b> Take front, side and back photos so you can see the change week to week.</span><button class="btn ghost small" data-go="checkin">Start check-in</button>`; return; }
+  const d=daysBetween(last.date,today()); el.hidden = d<7;
+  if(d>=7) el.innerHTML=`<span><b>Weekly check-in due.</b> Last one was ${d} days ago.</span><button class="btn ghost small" data-go="checkin">Do check-in</button>`;
+}
+const fmtD = (v,unit,dp=1) => v==null ? '–' : `${v>0?'+':v<0?'−':''}${Math.abs(v).toFixed(dp)}${unit}`;
+async function fillImgs(root){ for(const el of root.querySelectorAll('img[data-pid]')){ const u=await photoURL(el.dataset.pid); if(u) el.src=u; } }
+function renderCheckin(){
+  const list=sortedCI(), last=list[list.length-1], adj=+(prof().adj||0);
+  $('ciStatus').innerHTML = !last
+    ? `<h3>No check-ins yet</h3><div class="note">Today's photos become your starting point. Do one every 7 days, same time and conditions, and the app will tell you whether to adjust calories.</div>`
+    : `<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline"><h3>Last check-in ${dateLabel(last.date).toLowerCase()}</h3><span class="label">${list.length} total</span></div>
+       <div class="note">${daysBetween(last.date,today())>=7?'<b style="color:var(--ink)">Due now.</b>':`Next due ${dateLabel(addDays(last.date,7))}.`} Daily target is ${tg().kcal.toLocaleString()} kcal${adj?` (${adj>0?'+':''}${adj} from check-ins)`:''}.</div>`;
+  POSES.forEach(p=>{ const box=$('pose'+p[0].toUpperCase()+p.slice(1)), d=ciDraft[p];
+    box.classList.toggle('has',!!d); box.querySelector('.pv').innerHTML = d?`<img src="${d.preview}" alt="">`:'Tap to add'; });
+  const wIn=$('ciW'); if(!wIn.value && document.activeElement!==wIn){ const tw=S.weights.find(w=>w.date===today()); if(tw) wIn.value=tw.kg; }
+  const lw=[...S.weights].sort((a,b)=>a.date<b.date?1:-1)[0]; wIn.placeholder = lw ? `Last: ${lw.kg}` : 'e.g. 95.2';
+
+  const res=$('ciResult');
+  if(!last){ res.hidden=true; }
+  else {
+    const prev=list[list.length-2], r=recommend(last,prev);
+    const canAI = prev && firstPhoto(last) && firstPhoto(prev);
+    res.hidden=false;
+    res.innerHTML = `<span class="label">${prev?`${dateLabel(last.date)} vs ${dateLabel(prev.date)}`:'Result'}</span>
+      <div><span class="pill ${r.kind}">${r.kind==='base'?'Baseline':r.kind==='hold'?'Hold':r.delta>0?'Eat more':'Eat less'}</span></div>
+      <h3>${esc(r.title)}</h3>
+      ${prev?`<div class="deltas">
+        <div class="stat"><div class="v">${fmtD(r.dW,' kg')}</div><div class="note">7-day avg weight</div></div>
+        <div class="stat"><div class="v">${fmtD(r.rate,'%',2)}</div><div class="note">per week</div></div>
+        <div class="stat"><div class="v">${fmtD(r.dWaist,' cm')}</div><div class="note">waist</div></div></div>`:''}
+      <div class="note">${esc(r.text)}</div>
+      ${r.delta && !last.applied ? `<button class="btn" data-apply="${r.delta}" data-ci="${esc(last.id)}">Apply ${r.delta>0?'+':''}${r.delta} kcal</button>` : ''}
+      ${last.applied ? `<div class="note">Applied ${last.applied>0?'+':''}${last.applied} kcal to your daily target.</div>`:''}
+      ${last.ai ? aiBlock(last) : canAI ? `<button class="btn ghost" id="aiCmp" data-ci="${esc(last.id)}" ${aiBusy?'disabled':''}>${aiBusy?'<span class="spin"></span> Comparing photos…':'Compare photos with Claude'}</button>` : ''}
+      <div class="err" id="aiCmpErr" hidden></div>`;
+  }
+
+  const withPics=list.filter(firstPhoto);
+  $('cmpCard').hidden = !withPics.length;
+  if(withPics.length){
+    if(!withPics.find(c=>c.id===cmp.a)) cmp.a=withPics[0].id;
+    if(!withPics.find(c=>c.id===cmp.b)) cmp.b=withPics[withPics.length-1].id;
+    const opts=sel=>withPics.map(c=>`<option value="${esc(c.id)}" ${c.id===sel?'selected':''}>${esc(dateLabel(c.date))}${c.kg?` · ${c.kg} kg`:''}</option>`).join('');
+    $('cmpA').innerHTML=opts(cmp.a); $('cmpB').innerHTML=opts(cmp.b);
+    document.querySelectorAll('#poseSeg button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.p===cmp.pose));
+    const fig=id=>{ const c=withPics.find(x=>x.id===id), pid=c.photos[cmp.pose];
+      return `<figure>${pid?`<img data-pid="${esc(pid)}" alt="${esc(cmp.pose)} photo ${esc(c.date)}">`:`<div class="ph">No ${cmp.pose} photo</div>`}<span class="lbl">${esc(dateLabel(c.date))}</span></figure>`; };
+    $('cmpView').innerHTML = fig(cmp.a)+fig(cmp.b);
+    fillImgs($('cmpView'));
+  }
+
+  $('histCard').hidden = !list.length;
+  const rev=[...list].reverse();
+  $('ciList').innerHTML = rev.map((c,i)=>{ const r=recommend(c,rev[i+1]), pid=firstPhoto(c);
+    return `<div class="ci">${pid?`<img data-pid="${esc(pid)}" alt="">`:'<span class="ph"></span>'}
+      <div style="min-width:0"><div style="font-weight:600">${esc(dateLabel(c.date))}${c.kg?` · ${c.kg} kg`:''}${c.waist?` · ${c.waist} cm`:''}</div>
+      <div class="note">${esc(r.title)}${c.applied?` · applied ${c.applied>0?'+':''}${c.applied}`:''}</div></div>
+      ${ciDel===c.id?`<span style="display:flex;gap:6px"><button class="x" data-cidel="${esc(c.id)}" style="color:var(--over)">Delete</button><button class="x" data-cikeep>Keep</button></span>`:`<button class="x" data-ciask="${esc(c.id)}">Remove</button>`}</div>`; }).join('');
+  fillImgs($('ciList'));
+}
+function aiBlock(c){ const a=c.ai;
+  return `<div class="ai card"><span class="label">Claude's photo read</span>
+    <div><b>${esc(a.summary||'')}</b></div>
+    ${a.observations&&a.observations.length?`<ul>${a.observations.map(o=>`<li>${esc(o)}</li>`).join('')}</ul>`:''}
+    <div class="note">${esc(a.reason||'')}</div>
+    ${a.kcal_change && !c.applied ? `<button class="btn ghost" data-apply="${a.kcal_change}" data-ci="${esc(c.id)}">Apply Claude's ${a.kcal_change>0?'+':''}${a.kcal_change} kcal instead</button>`:''}
+  </div>`; }
+async function poseFile(e){
+  const f=e.target.files[0], pose=e.target.dataset.pose; e.target.value=''; if(!f) return;
+  try{ const {im,u}=await loadImg(f); const blob=await toBlob(draw(im,1280));
+    if(ciDraft[pose]) URL.revokeObjectURL(ciDraft[pose].preview);
+    ciDraft[pose]={blob, preview:u}; renderCheckin();
+  }catch(err){ toast('Could not open that photo. Try another.'); }
+}
+document.querySelectorAll('input[data-pose]').forEach(i=>i.addEventListener('change',poseFile));
+$('ciSave').onclick=async()=>{
+  const kg=+$('ciW').value||null, waist=+$('ciWaist').value||null, has=POSES.some(p=>ciDraft[p]);
+  const err=$('ciErr'); err.hidden=true;
+  if(!has && !kg){ err.textContent='Add at least one photo or your weight.'; err.hidden=false; return; }
+  if(kg && !(kg>30&&kg<300)){ err.textContent='That weight looks off. Enter it in kilograms.'; err.hidden=false; return; }
+  const btn=$('ciSave'); btn.disabled=true;
+  try{
+    const d=today(), id=uid('ci'), photos={};
+    for(const p of POSES){ if(ciDraft[p]){ const pid=id+'_'+p; await db.putPhoto(pid,ciDraft[p].blob); photos[p]=pid; } }
+    const c={kind:'checkin',id,date:d,ts:Date.now(),photos};
+    if(kg) c.kg=+kg.toFixed(1); if(waist) c.waist=+waist.toFixed(1);
+    await store.put(c);
+    if(kg) await store.put({kind:'weight',id:'w_'+d,date:d,kg:+kg.toFixed(1),ts:Date.now()});
+    POSES.forEach(p=>{ if(ciDraft[p]) URL.revokeObjectURL(ciDraft[p].preview); ciDraft[p]=null; });
+    $('ciW').value=''; $('ciWaist').value=''; cmp.b=c.id;
+    toast('Check-in saved'); renderCheckin(); $('ciResult').scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(e){ err.textContent='Saving failed. Your phone storage may be full.'; err.hidden=false; }
+  finally{ btn.disabled=false; }
+};
+async function aiCompare(id){
+  const list=sortedCI(), i=list.findIndex(c=>c.id===id), cur=list[i], prev=list[i-1]; if(!cur||!prev) return;
+  aiBusy=true; renderCheckin();
+  try{
+    const imgs=[], desc=[];
+    for(const p of POSES){ if(cur.photos[p]&&prev.photos[p]&&imgs.length<6){ const a=await db.getPhoto(prev.photos[p]), b=await db.getPhoto(cur.photos[p]); if(a&&b){ imgs.push(a,b); desc.push(`${p}: earlier (${prev.date}) then latest (${cur.date})`); } } }
+    if(!imgs.length) throw {code:'nopair'};
+    const r=recommend(cur,prev), p=prof(), t=tg();
+    const prompt=`You are a physique coach reviewing a client's weekly progress photos to decide whether to change their calories.
+Goal: ${({cut:'lose fat while keeping muscle',recomp:'recomposition (lose fat, build muscle, weight steady)',bulk:'lean bulk'})[p.goal]}.
+Current daily target: ${t.kcal} kcal, ${t.pro} g protein.
+Images, in order, are pairs of the same pose: ${desc.join('; ')}.
+Days between check-ins: ${r.days}. 7-day average weight change: ${r.dW==null?'unknown':r.dW.toFixed(2)+' kg'} (${r.rate==null?'unknown':r.rate.toFixed(2)+'% per week'}). Waist change: ${r.dWaist==null?'not measured':r.dWaist.toFixed(1)+' cm'}.
+The rules-based suggestion is ${r.delta?`${r.delta>0?'+':''}${r.delta} kcal`:'hold calories'}.
+Compare the photos. Lighting, pump, posture and bloating change week to week, so only call changes you can see clearly, and say so if photo conditions differ too much to judge. Weigh the numbers and photos together.
+Return JSON only: {"summary": one plain sentence on what changed, "observations": up to 4 short specific points (midsection, shoulders/arms, back, conditions), "kcal_change": one of -200,-150,-100,0,100,150,200, "reason": one sentence explaining the call}`;
+    const out=await askClaude(prompt,imgs);
+    const ai={summary:String(out.summary||''),observations:(out.observations||[]).slice(0,4).map(String),kcal_change:[-200,-150,-100,0,100,150,200].includes(+out.kcal_change)?+out.kcal_change:0,reason:String(out.reason||'')};
+    aiBusy=false; await store.put({...cur, ai});
+  }catch(e){
+    aiBusy=false; renderCheckin();
+    const el=$('aiCmpErr'); if(el){ el.textContent = e&&e.code==='nopair' ? 'Need the same pose in both check-ins to compare.' : aiErrMsg(e); el.hidden=false; }
+  }
+}
+$('v-checkin').addEventListener('click', async e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  if(b.id==='aiCmp'){ aiCompare(b.dataset.ci); }
+  else if(b.dataset.apply){ const delta=+b.dataset.apply, c=S.checkins.find(x=>x.id===b.dataset.ci); b.disabled=true;
+    try{ await store.saveSettings({...prof(), adj:(+(prof().adj||0))+delta}); await store.put({...c, applied:delta}); toast(`Target now ${tg().kcal.toLocaleString()} kcal`); }
+    catch(err){ toast('Save failed. Try again.'); b.disabled=false; } }
+  else if(b.dataset.p){ cmp.pose=b.dataset.p; renderCheckin(); }
+  else if(b.dataset.ciask){ ciDel=b.dataset.ciask; renderCheckin(); }
+  else if('cikeep' in b.dataset){ ciDel=null; renderCheckin(); }
+  else if(b.dataset.cidel){ const c=S.checkins.find(x=>x.id===b.dataset.cidel); ciDel=null;
+    try{ await store.del(c); for(const p of POSES){ const pid=c.photos&&c.photos[p]; if(pid){ await db.delPhoto(pid).catch(()=>{}); urlCache.delete(pid); } } toast('Check-in removed'); }
+    catch(err){ toast('Delete failed. Try again.'); } }
+});
+$('cmpA').onchange=e=>{ cmp.a=e.target.value; renderCheckin(); };
+$('cmpB').onchange=e=>{ cmp.b=e.target.value; renderCheckin(); };
+
+/* ---------- other events ---------- */
+$('mealList').addEventListener('click', async e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  if(b.dataset.open){ S.openMeal = S.openMeal===b.dataset.open?null:b.dataset.open; S.confirmDel=null; renderToday(); }
+  else if(b.dataset.askdel){ S.confirmDel=b.dataset.askdel; renderToday(); }
+  else if('nodel' in b.dataset){ S.confirmDel=null; renderToday(); }
+  else if(b.dataset.del){ const m=S.meals.find(x=>x.id===b.dataset.del); S.confirmDel=null; try{ await store.del(m); toast('Meal deleted'); }catch(err){ toast('Delete failed. Try again.'); } }
+});
+$('prevDay').onclick=()=>{ S.date=addDays(S.date,-1); S.openMeal=null; render(); };
+$('nextDay').onclick=()=>{ if(S.date<today()){ S.date=addDays(S.date,1); S.openMeal=null; render(); } };
+$('wSave').onclick=async()=>{ const kg=+$('wIn').value; if(!(kg>30&&kg<300)){ $('wIn').focus(); return; }
+  const d=today(); try{ await store.put({kind:'weight',id:'w_'+d,date:d,kg:+kg.toFixed(1),ts:Date.now()}); $('wIn').value=''; toast('Weight logged'); }catch(e){ toast('Save failed. Try again.'); } };
+document.addEventListener('click', e=>{ const g=e.target.closest('[data-go]'); if(g) go(g.dataset.go); });
+function go(v){ S.view=v; ['today','add','progress','checkin','setup'].forEach(x=>$('v-'+x).hidden = x!==v);
+  document.querySelectorAll('nav.tabs button').forEach(b=>{ if(b.dataset.v===v) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); });
+  render(); window.scrollTo(0,0); }
+document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>go(b.dataset.v));
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && S.date>today()) S.date=today(); if(!document.hidden) render(); });
+
+/* ---------- start ---------- */
+(async()=>{
+  try{ idb=await openDB(); ingest(await db.all()); }
+  catch(e){ toast('This browser blocked storage. Turn off private mode.'); }
+  render();
+  try{ if(navigator.storage&&navigator.storage.persist){ const ok=await navigator.storage.persist(); $('storeNote').textContent = ok ? 'Storage is protected from automatic clearing.' : 'Install to your home screen so the browser keeps your data.'; } }catch(e){}
+  if('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
+})();
+})();
+</script>
+</body>
+</html>
