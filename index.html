@@ -509,7 +509,7 @@ function render(){
   $('keyNote').hidden = !!getKey();
   renderToday(); renderDue();
   if(S.view==='progress') renderProgress();
-  if(S.view==='setup') renderTargets(false);
+  if(S.view==='setup') renderTargets(true);
   if(S.view==='checkin') renderCheckin();
 }
 function renderToday(){
@@ -596,9 +596,15 @@ function renderTargets(fromInput){
   const adj=+(prof().adj||0), an=$('adjNote'); an.hidden=!adj;
   if(adj) an.innerHTML=`Includes <b>${adj>0?'+':''}${adj} kcal</b> from check-ins. <button class="linkbtn" id="adjReset">Reset to 0</button>`;
 }
-['tW','tH','tA','tS','tAct'].forEach(id=>$(id).addEventListener('input',()=>renderTargets(true)));
-$('goalSeg').onclick=e=>{ if(e.target.dataset.g){ tGoal=e.target.dataset.g; renderTargets(true); } };
+// Targets save automatically as you type, so leaving the screen never loses them.
+let saveTimer=null;
+function autoSave(){ clearTimeout(saveTimer); saveTimer=setTimeout(async()=>{ const p=readT(); if(!(p.w&&p.h&&p.a)) return;
+  try{ await db.put({...p,id:'settings',kind:'settings'}); S.settings={...p,id:'settings',kind:'settings'}; $('saveTargets').textContent='Saved ✓'; }catch(e){ toast('Save failed. Try again.'); } },500); }
+function onTargetInput(){ $('saveTargets').textContent='Save targets'; renderTargets(true); autoSave(); }
+['tW','tH','tA','tS','tAct'].forEach(id=>{ $(id).addEventListener('input',onTargetInput); $(id).addEventListener('change',onTargetInput); });
+$('goalSeg').onclick=e=>{ if(e.target.dataset.g){ tGoal=e.target.dataset.g; onTargetInput(); } };
 $('saveTargets').onclick=async()=>{ const p=readT(); if(!(p.w&&p.h&&p.a)){ toast('Fill in weight, height and age'); return; }
+  clearTimeout(saveTimer);
   try{ await store.saveSettings(p); toast('Targets saved'); go('today'); }catch(e){ toast('Save failed. Try again.'); } };
 $('v-setup').addEventListener('click', async e=>{ if(e.target.id==='adjReset'){ await store.saveSettings({...prof(),adj:0}); toast('Adjustment cleared'); } });
 $('saveKey').onclick=()=>{ try{ localStorage.setItem(KEY_LS,$('apiKey').value.trim()); localStorage.setItem(MODEL_LS,$('model').value); toast('Saved'); $('keyStatus').textContent=''; render(); }catch(e){ toast('Could not save on this browser.'); } };
@@ -885,6 +891,7 @@ $('wSave').onclick=async()=>{ const kg=+$('wIn').value; if(!(kg>30&&kg<300)){ $(
   const d=today(); try{ await store.put({kind:'weight',id:'w_'+d,date:d,kg:+kg.toFixed(1),ts:Date.now()}); $('wIn').value=''; toast('Weight logged'); }catch(e){ toast('Save failed. Try again.'); } };
 document.addEventListener('click', e=>{ const g=e.target.closest('[data-go]'); if(g) go(g.dataset.go); });
 function go(v){ S.view=v; ['today','add','progress','checkin','setup'].forEach(x=>$('v-'+x).hidden = x!==v);
+  if(v==='setup'){ renderTargets(false); $('saveTargets').textContent = S.settings ? 'Saved ✓' : 'Save targets'; }
   document.querySelectorAll('nav.tabs button').forEach(b=>{ if(b.dataset.v===v) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); });
   render(); window.scrollTo(0,0); }
 document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>go(b.dataset.v));
